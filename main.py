@@ -13,9 +13,6 @@ Git Repo Link           : https://github.com/Charanmakkar/linphone_python_RPi
 my Github               : https://github.com/charanmakkar
 """
 
-
-
-
 import subprocess
 import time
 import tkinter as tk

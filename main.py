@@ -1,18 +1,36 @@
 #!/usr/bin/env python3
 
 """
-Python Code             : Emergency Calling Booth
+Python Code             : Emergency Calling Booth - Linphone / Linphonec with Python with RPI with GUI
 Project Done for        : Naman Bhatnagar
-Developer               : Charanpreet Singh
-Email                   : charanmakkar2@gmail.com
+
+
 File Version            : 1.0.1
 Date of Last Modified   : 06 Sept 2024
-Time of Last Modified   : 03:13
-Contact @               : 7015610423
+Time of Last Modified   : 03:13 AM
+
+Developer               : Charanpreet Singh
+Email                   : charanmakkar2@gmail.com
 Git Repo Link           : https://github.com/Charanmakkar/linphone_python_RPi
 my Github               : https://github.com/charanmakkar
+
+
+/*
+DESCRIPTION:
+------------
+linphone with Raspberry Pi 4 and Controlled with python
+Voip calling using RPI + mic + speaker
+Software controlled with Python based UI
+
+linphone installed with instructions given at : https://wiki.linphone.org/xwiki/wiki/public/view/Linphone/Linphone%20and%20Raspberry%20Pi/
+
+all above instructions are simply fied and mentioned in file in current repo: "readme instructions Linux.txt" 
+
+*/
+
 """
 
+# all imports 
 import subprocess
 import time
 import tkinter as tk

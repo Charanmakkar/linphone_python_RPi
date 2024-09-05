@@ -41,3 +41,34 @@ Link1 : https://www.myvoipapp.com/
 Link2 : https://www.myvoipapp.com/download/index.html
 
 
+
+
+********************************************
+INSTALLATION GUIDE 
+-----------
+"readme instructions Linux.txt"
+
+1. sudo apt update 
+
+2. sudo apt install cmake automake autoconf libtool intltool yasm libasound2-dev libpulse-dev libv4l-dev nasm git libglew-dev doxygen 
+
+3. sudo pip install pystache && sudo pip install wheel
+
+4. git clone --branch release/5.2 https://gitlab.linphone.org/BC/public/linphone-sdk.git --recursive
+
+5. cd linphone-sdk && mkdir build-raspberry && cd build-raspberry
+
+6. cmake .. -DLINPHONESDK_PLATFORM=Desktop -DENABLE_OPENH264=ON  -DENABLE_LIME_X3DH=OFF -DENABLE_ADVANCED_IM=OFF -DENABLE_WEBRTC_AEC=OFF -DENABLE_UNIT_TESTS=OFF -DENABLE_MKV=OFF -DENABLE_FFMPEG=OFF -DENABLE_CXX_WRAPPER=OFF -DENABLE_NON_FREE_CODECS=ON -DENABLE_VCARD=OFF -DENABLE_BV16=OFF -DENABLE_V4L=ON -DENABLE_CONSOLE_UI=ON -DENABLE_DAEMON=ON -DENABLE_FLEXIAPI=OFF -DENABLE_QRCODE=OFF -DENABLE_PYTHON_WRAPPER=ON -DENABLE_DOC=ON
+
+7. make -j2
+
+8. mkdir -p ~/.local/share/linphone
+
+9. sudo nano ~/.bashrc
+// add these below 2 commands here
+export PATH=/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin:$PATH
+export PATH=$PATH:/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/  # (optional)
+
+10. cd linphone-sdk/desktop/bin
+
+11. ./linphonec

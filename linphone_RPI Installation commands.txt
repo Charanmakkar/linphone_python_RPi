@@ -6,17 +6,19 @@
 3. sudo pip install pystache && sudo pip install wheel
 
 4. git clone --branch release/5.2 https://gitlab.linphone.org/BC/public/linphone-sdk.git --recursive
+// this command will take time as it downloads 2.4Gb from github
 
 5. cd linphone-sdk && mkdir build-raspberry && cd build-raspberry
 
 6. cmake .. -DLINPHONESDK_PLATFORM=Desktop -DENABLE_OPENH264=ON  -DENABLE_LIME_X3DH=OFF -DENABLE_ADVANCED_IM=OFF -DENABLE_WEBRTC_AEC=OFF -DENABLE_UNIT_TESTS=OFF -DENABLE_MKV=OFF -DENABLE_FFMPEG=OFF -DENABLE_CXX_WRAPPER=OFF -DENABLE_NON_FREE_CODECS=ON -DENABLE_VCARD=OFF -DENABLE_BV16=OFF -DENABLE_V4L=ON -DENABLE_CONSOLE_UI=ON -DENABLE_DAEMON=ON -DENABLE_FLEXIAPI=OFF -DENABLE_QRCODE=OFF -DENABLE_PYTHON_WRAPPER=ON -DENABLE_DOC=ON
 
 7. make -j2
+// This commands also takes time as it compiles full source code according to your board and specs
 
 8. mkdir -p ~/.local/share/linphone
 
 9. sudo nano ~/.bashrc
-// add these below 2 commands here
+// add below line to this file
 export PATH=/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin:$PATH
 export PATH=$PATH:/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/  # (optional)
 

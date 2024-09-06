@@ -1,0 +1,67 @@
+/*
+Notes:
+1. Used for testing 
+    1.1. Windows 10 Laptop / public
+    1.2. RPi with linphone compiled 
+    1.3. Android Phone with linphone-mobile-app installed (optional) <- I used
+    1.3. Same wifi network for all above devices
+
+2. Softwares used
+    2.1. Linphone app - Desktop
+    2.2. minisipphone - Desktop
+    2.3. linphone app - Android Phone
+
+    2.4. minisipserver - Desptop
+
+    2.5. linohonec     - In RPi
+*/
+
+
+************************************************************************
+
+
+// AFTER INSTALLATION \\
+1. Open "minisipserver - Desptop"
+Note down all details like ip of laptop,
+2. Add new local user in minisipserver 
+    2.1. Add username 
+    2.2. Add password
+    2.3. Example username = 100 & 101 and password = 100 and 101
+3. Open "minisipphone - Desktop" app
+    3.1. Click on file and select sip account 
+    3.2. configure account here
+        Server Address      : 192.168.1.10  <- Your laptop Address
+        Port                : 5060
+        username            : 100
+        password            : 100
+
+3. configure Rpi linphone 
+    3.1. linphonec
+    3.2. linphonec > proxy add
+        3.2.1. your proxy Address   - sip:192.168.1.10
+        3.2.2. your identity        - sip:101@192.168.1.10
+        3.2.3. want to register     - yes
+        3.2.4. expire time          - 600
+        3.2.5. accept               - yes
+        3.2.6. password             - 101
+
+
+Now you are ready to call between RPI and minisipphone app. 
+
+
+************************************************************************
+
+// AFTER CONFIGURATION - MAKE A CALL \\
+/*
+- Make sure minisipserver is running
+- both Rpi and Laptop on same wifi
+*/
+
+1. From RPI 
+    1.1. linphonec
+    1.2. call 100
+You will receive call in the Laptop app and can accept it and talk as well
+
+2. From minisipphone-app
+    2.1. Enter the ID as 101 and click on call 
+You will receive call on RPI and can see in terminal 

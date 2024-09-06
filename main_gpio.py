@@ -7,7 +7,7 @@ Project Done for        : Naman Bhatnagar
 
 File Version            : 1.0.1
 Date of Last Modified   : 06 Sept 2024
-Time of Last Modified   : 03:13 AM
+Time of Last Modified   : 12:18 PM
 
 Developer               : Charanpreet Singh
 Email                   : charanmakkar2@gmail.com
@@ -26,15 +26,27 @@ linphone installed with instructions given at : https://wiki.linphone.org/xwiki/
 
 all above instructions are simply fied and mentioned in file in current repo: "readme instructions Linux.txt" 
 
+**Calling can be done with GPIO also, 
+so GPIO_5 of RPI is configured for the same
+Push the Button, it should connect you to the server.
 */
 
 """
 
 # all imports 
-import subprocess
+import subprocess, os
 import time
 import tkinter as tk
 from tkinter import messagebox
+import RPi.GPIO as gpio                 # importing Lib for GPIOs in RPI
+
+# Fixed Variables
+# fixed_sip_id = username
+fixed_sip_id = "104"
+
+# GPIO Setup
+gpio.setmode(gpio.BCM)
+gpio.setup(5, gpio.IN, pull_up_down = gpio.PUD_UP)
 
 # Start Linphone in CLI mode
 linphone_process = subprocess.Popen(['linphonec'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -85,6 +97,19 @@ def make_call():
             messagebox.showerror("Error", f"Failed to make the call: {e}")
     else:
         messagebox.showwarning("Input Error", "Please enter a SIP ID")
+    
+def make_call_gpio():
+    global call_active
+    
+    if call_active:
+        terminate_call()
+
+    try:
+        linphone_process.stdin.write(f"call {fixed_sip_id}\n")
+        linphone_process.stdin.flush()
+        messagebox.showinfo("Call Status", f"Calling {fixed_sip_id}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to make the call: {e}")
 
 def terminate_call():
     global call_active
@@ -108,6 +133,9 @@ def update_call_status(active):
         status_label.config(text="ringing", bg="blue")
     elif(call_active == 0):
         status_label.config(text="Call Inactive", bg="red")
+
+# Event added for 1 button to make a call
+gpio.add_event_detect(5, gpio.FALLING, callback=make_call, bouncetime=300)
 
 # Create the main Tkinter window
 root = tk.Tk()

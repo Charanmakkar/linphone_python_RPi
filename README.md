@@ -34,9 +34,14 @@ TEST SERVER / APP / TOOLs used
 Test Server APP/TOOLS
 1. Linphone-5.2.6-win64.exe
 Link : https://new.linphone.org/technical-corner/linphone?qt-technical_corner=2#qt-technical_corner
+OR 
+2. Linphone (Mobile-App) <- In your phone
+Link : Google Play Store
+or
+3. msp_v9_setup.exe     <- Mini sip phone   (On Desktop)
 
-2. msp_v9_setup.exe
-3. mss_v50_u5.exe
+4. mss_v50_u5.exe       <- Mini sip server  (On Desktop)
+// For Windows Laptop
 Link1 : https://www.myvoipapp.com/
 Link2 : https://www.myvoipapp.com/download/index.html
 

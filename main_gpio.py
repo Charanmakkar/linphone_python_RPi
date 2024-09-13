@@ -35,7 +35,7 @@ Push the Button, it should connect you to the server.
 
 # all imports 
 import subprocess, os
-import time
+import time, traceback
 import tkinter as tk
 from tkinter import messagebox
 import RPi.GPIO as gpio                 # importing Lib for GPIOs in RPI
@@ -45,123 +45,153 @@ import RPi.GPIO as gpio                 # importing Lib for GPIOs in RPI
 fixed_sip_id = "104"
 
 # GPIO Setup
+pushButton = 21
 gpio.setmode(gpio.BCM)
-gpio.setup(5, gpio.IN, pull_up_down = gpio.PUD_UP)
+gpio.setup(pushButton, gpio.IN, pull_up_down = gpio.PUD_UP)
 
-# Start Linphone in CLI mode
-linphone_process = subprocess.Popen(['linphonec'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
-linphone_process.stdin.write("autoanswer enable\n")
 
-call_active = False  # Variable to track call status
+try: 
+    # Start Linphone in CLI mode
+    linphone_process = subprocess.Popen(['/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/linphonec'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    linphone_process.stdin.write("autoanswer enable\n")
+    # linphone_process.stdin.write("call 104\n")
 
-def monitor_and_auto_answer():
-    global call_active
-    try:        
-        # Continuously monitor Linphone output
-        while True:
-            output = linphone_process.stdout.readline()
-            if output:
-                # print(output.strip())
+    call_active = False  # Variable to track call status
 
-                # Update the call status based on Linphone output
-                if "ended" in output:
-                    update_call_status(0)
-                elif "ringing" in output:
-                    update_call_status(2)
-                elif "established" in output:
-                    update_call_status(1)
-                
-                   
-            # Check if the process has ended
-            if linphone_process.poll() is not None:
-                break
-                
-    except KeyboardInterrupt:
-        linphone_process.terminate()
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    def monitor_and_auto_answer():
+        global call_active
+        try:        
+            # Continuously monitor Linphone output
+            while True:
+                output = linphone_process.stdout.readline()
+                if output:
+                    print(output.strip())
 
-def make_call():
-    global call_active
-    sip_id = sip_input.get()
-    
-    if call_active:
-        terminate_call()
-
-    if sip_id:
-        try:
-            linphone_process.stdin.write(f"call {sip_id}\n")
-            linphone_process.stdin.flush()
-            messagebox.showinfo("Call Status", f"Calling {sip_id}")
+                    # Update the call status based on Linphone output
+                    if "ended" in output:
+                        update_call_status(0)
+                    elif "ringing" in output:
+                        update_call_status(2)
+                    elif "established" in output:
+                        update_call_status(1)
+                    
+                    
+                # Check if the process has ended
+                if linphone_process.poll() is not None:
+                    break
+                    
+        except KeyboardInterrupt:
+            linphone_process.terminate()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to make the call: {e}")
-    else:
-        messagebox.showwarning("Input Error", "Please enter a SIP ID")
+            print(f"An error occurred: {e}")
+
+    def make_call():
+        global call_active
+        sip_id = sip_input.get()
+        
+        if call_active:
+            terminate_call()
+
+        if sip_id:
+            try:
+                linphone_process.stdin.write(f"call {sip_id}\n")
+                linphone_process.stdin.flush()
+                messagebox.showinfo("Call Status", f"Calling {sip_id}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to make the call: {e}")
+        else:
+            messagebox.showwarning("Input Error", "Please enter a SIP ID")
     
-def make_call_gpio():
-    global call_active
-    
-    if call_active:
-        terminate_call()
+    def make_call_gpio(channel=None):  # Accept an optional argument
+        global call_active
+        
+        sip_input.delete(0, tk.END)  # Clear existing text
+        sip_id = sip_input.insert(0, fixed_sip_id) # set
+        sip_id = sip_input.get()
 
-    try:
-        linphone_process.stdin.write(f"call {fixed_sip_id}\n")
-        linphone_process.stdin.flush()
-        messagebox.showinfo("Call Status", f"Calling {fixed_sip_id}")
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to make the call: {e}")
+        if call_active:
+            terminate_call()
 
-def terminate_call():
-    global call_active
-    if call_active:
-        try:
-            linphone_process.stdin.write("terminate\n")
-            linphone_process.stdin.flush()
-            update_call_status(False)
-            messagebox.showinfo("Call Status", "Call terminated")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to terminate the call: {e}")
-    else:
-        messagebox.showwarning("Call Status", "No active call to terminate")
+        if sip_id: 
+            try:
+                linphone_process.stdin.write(f"call {sip_id}\n")
+                linphone_process.stdin.flush()
+                messagebox.showinfo("Call Status", f"Calling {sip_id}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to make the call: {e}")
+        else:
+            messagebox.showwarning("Input Error", "Please enter a SIP ID")
 
-def update_call_status(active):
-    global call_active
-    call_active = active
-    if call_active == 1:
-        status_label.config(text="Call Active", bg="green")
-    elif(call_active == 2):
-        status_label.config(text="ringing", bg="blue")
-    elif(call_active == 0):
-        status_label.config(text="Call Inactive", bg="red")
 
-# Event added for 1 button to make a call
-gpio.add_event_detect(5, gpio.FALLING, callback=make_call, bouncetime=300)
+    # def make_call_gpio():
+    #     global call_active
+        
+    #     if call_active:
+    #         terminate_call()
 
-# Create the main Tkinter window
-root = tk.Tk()
-root.title("Linphone SIP Caller")
+    #     try:
+    #         linphone_process.stdin.write(f"call {fixed_sip_id}\n")
+    #         linphone_process.stdin.flush()
+    #         messagebox.showinfo("Call Status", f"Calling {fixed_sip_id}")
+    #     except Exception as e:
+    #         messagebox.showerror("Error", f"Failed to make the call: {e}")
 
-# Create a label and input field for SIP ID
-tk.Label(root, text="Enter SIP ID:").pack(pady=10)
-sip_input = tk.Entry(root, width=50)
-sip_input.pack(pady=10)
+    def terminate_call():
+        global call_active
+        if call_active:
+            try:
+                linphone_process.stdin.write("terminate\n")
+                linphone_process.stdin.flush()
+                update_call_status(False)
+                messagebox.showinfo("Call Status", "Call terminated")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to terminate the call: {e}")
+        else:
+            messagebox.showwarning("Call Status", "No active call to terminate")
 
-# Create a button to initiate the call
-call_button = tk.Button(root, text="Make Call", command=make_call)
-call_button.pack(pady=10)
+    def update_call_status(active):
+        global call_active
+        call_active = active
+        if call_active == 1:
+            status_label.config(text="Call Active", bg="green")
+        elif(call_active == 2):
+            status_label.config(text="ringing", bg="blue")
+        elif(call_active == 0):
+            status_label.config(text="Call Inactive", bg="red")
 
-# Create a button to terminate the call
-terminate_button = tk.Button(root, text="Terminate Call", command=terminate_call)
-terminate_button.pack(pady=10)
+    # Event added for 1 button to make a call
+    gpio.add_event_detect(pushButton, gpio.FALLING, callback=make_call_gpio, bouncetime=300)
 
-# Call status indicator
-status_label = tk.Label(root, text="Call Inactive", bg="red", width=20)
-status_label.pack(pady=10)
+    # Create the main Tkinter window
+    root = tk.Tk()
+    root.title("Linphone SIP Caller")
 
-# Start monitoring Linphone and auto-answer calls in a separate thread
-import threading
-monitor_thread = threading.Thread(target=monitor_and_auto_answer, daemon=True)
-monitor_thread.start()
+    # Create a label and input field for SIP ID
+    tk.Label(root, text="Enter SIP ID:").pack(pady=10)
+    sip_input = tk.Entry(root, width=50)
+    sip_input.pack(pady=10)
 
-# Start the Tkinter main loop
-root.mainloop()
+    # Create a button to initiate the call
+    call_button = tk.Button(root, text="Make Call", command=make_call)
+    call_button.pack(pady=10)
+
+    # Create a button to terminate the call
+    terminate_button = tk.Button(root, text="Terminate Call", command=terminate_call)
+    terminate_button.pack(pady=10)
+
+    # Call status indicator
+    status_label = tk.Label(root, text="Call Inactive", bg="red", width=20)
+    status_label.pack(pady=10)
+
+    # Start monitoring Linphone and auto-answer calls in a separate thread
+    import threading
+    monitor_thread = threading.Thread(target=monitor_and_auto_answer, daemon=True)
+    monitor_thread.start()
+
+    # Start the Tkinter main loop
+    root.mainloop()
+
+except Exception as e:
+    with open('/home/pi/script_error_gpio.log', 'a') as f:
+        f.write(f"Error: {e}\n")
+        f.write("".join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)))

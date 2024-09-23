@@ -6,8 +6,8 @@ Project Done for        : Naman Bhatnagar
 
 
 File Version            : 1.0.1
-Date of Last Modified   : 20 Sept 2024
-Time of Last Modified   : 05:01 AM
+Date of Last Modified   : 24 Sept 2024
+Time of Last Modified   : 01:01 AM
 
 Developer               : Charanpreet Singh
 Email                   : charanmakkar2@gmail.com
@@ -34,7 +34,7 @@ Push the Button, it should connect you to the server.
 """
 
 # all imports 
-import subprocess, os
+import subprocess, sys
 import time, traceback, threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -74,6 +74,7 @@ try:
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                         text=True, bufsize=1)
     linphone_process.stdin.write("autoanswer enable\n")
+    linphone_process.stdin.write("register sip:pi@192.168.1.2 sip:192.168.1.2\n")
 
     # Function to check registration status
     def check_registration():
@@ -130,7 +131,7 @@ try:
 
 
     def monitor_and_auto_answer():
-        global call_active
+        global call_active, CallAllServers, check_receivedCall
         try:
             # Continuously monitor Linphone output
             while True:
@@ -147,11 +148,15 @@ try:
                     elif "ringing" in output:
                         print("Call is ringing.")
                         update_call_status(2)
+                        CallAllServers = True
+                        
                         
                     elif "established" in output:
                         print("Call is established.")
                         update_call_status(1)
                         call_active = True
+                        CallAllServers = False
+                        check_receivedCall = True
 
                 # Check if the process has ended
                 if linphone_process.poll() is not None:
@@ -184,7 +189,7 @@ try:
 
         if CallAllServers:
             # If there are still SIP IDs to call
-            if current_server_index < len(fixed_sip_ids):
+            if (current_server_index < len(fixed_sip_ids)) and (CallAllServers == True):
                 sip_id = fixed_sip_ids[current_server_index]
 
                 print(f"Calling SIP ID: {sip_id}")
@@ -206,19 +211,24 @@ try:
 
             else:
                 # If all servers have been tried, reset and stop calling
-                print("All servers have been called. No response from any.")
-                messagebox.showinfo("Call Status", "All servers were tried. No response.")
+                print("All servers have been called OR Call attended")
+                # messagebox.showinfo("Call Status", "All servers were tried. No response.")
+
                 current_server_index = 0
-                CallAllServers = False
-            
+                
                 if check_receivedCall == True:
                     print("Connected")
+                    CallAllServers = False
                 else:
+                    CallAllServers = False
+                    print("No response from any.")
+
                     # Play Audio file
                     print("-> NO ANSWER AUDIO FILE")
                     play_audio(AUDIO_FILE_1)
 
         else:
+            # FORCE Hault
             terminate_call()
 
     # def check_call_status():
@@ -236,18 +246,22 @@ try:
     def check_call_status():
         global call_active, current_server_index, CallAllServers, check_receivedCall
 
-        # Terminate the current call and move to the next server, even if the call is active
-        print("Terminating the current call and moving to the next server.")
-        
-        # Terminate the current call
-        terminate_call()
-        
-        # Move to the next SIP ID in the list
-        current_server_index += 1
-        
-        # Call the next server in the list
-        call_next_server()
+        if (CallAllServers):
+            # Terminate the current call and move to the next server, even if the call is active
+            print("Terminating the current call and moving to the next server.")
 
+            # Terminate the current call
+            terminate_call()
+            
+            # Move to the next SIP ID in the list
+            current_server_index += 1
+            
+            # Call the next server in the list
+            call_next_server()
+        else:
+            print("Call connected, NO need to switch client")
+        
+    
 
     def terminate_call():
         global call_active
@@ -275,22 +289,23 @@ try:
             status_label.config(text="Call Inactive", bg="red")
 
     def add_proxy():
-        proxy = proxy_input.get()
-        if proxy:
-            linphone_process.stdin.write(f"proxy add {proxy}\n")
+        proxy_id = proxy_sipId.get()
+        proxy_server = proxy_sipAddr.get()
+        if proxy_id and proxy_server:
+            linphone_process.stdin.write(f"register {proxy_id} {proxy_server}\n")
             linphone_process.stdin.flush()
-            messagebox.showinfo("Proxy Status", f"Proxy {proxy} added.")
+            messagebox.showinfo("Proxy Status", f"Proxy {proxy_id} added.")
         else:
             messagebox.showwarning("Input Error", "Please enter a proxy to add.")
 
-    def add_proxy():
-        proxy = proxy_input.get()
-        if proxy:
-            linphone_process.stdin.write(f"proxy add {proxy}\n")
-            linphone_process.stdin.flush()
-            messagebox.showinfo("Proxy Status", f"Proxy {proxy} added.")
-        else:
-            messagebox.showwarning("Input Error", "Please enter a proxy to add.")
+    # def add_proxy():
+    #     proxy = proxy_input.get()
+    #     if proxy:
+    #         linphone_process.stdin.write(f"proxy add {proxy}\n")
+    #         linphone_process.stdin.flush()
+    #         messagebox.showinfo("Proxy Status", f"Proxy {proxy} added.")
+    #     else:
+    #         messagebox.showwarning("Input Error", "Please enter a proxy to add.")
 
     def remove_proxy():
         proxy = proxy_input.get()
@@ -304,6 +319,34 @@ try:
     def list_proxies():
         linphone_process.stdin.write("proxy list\n")
         linphone_process.stdin.flush()
+    
+    # Function to retrieve and store the proxy list
+    def get_proxy_list():
+        try:
+            # Send the proxy list command
+            linphone_process.stdin.write("proxy list\n")
+            linphone_process.stdin.flush()
+
+            # Read the output and store the proxies in a list
+            proxy_list = []
+            while True:
+                output = linphone_process.stdout.readline().strip()
+                if "No proxies defined" in output:
+                    print("No proxies found.")
+                    break
+                elif output.startswith("proxy:"):
+                    # Parse and store each proxy
+                    proxy_info = output.split("proxy: ")[1]
+                    proxy_list.append(proxy_info)
+                elif "linphonec>" in output:  # Stop reading when command prompt appears
+                    break
+
+            print("Proxy List: ", proxy_list)
+            return proxy_list
+
+        except Exception as e:
+            print(f"Error retrieving proxy list: {e}")
+            return []
 
     # Function to simulate GPIO press via UI button
     def gpio_test_button_click():
@@ -324,6 +367,25 @@ try:
     def stop_audio():
         # Stop the audio if it's playing
         pygame.mixer.music.stop()
+
+    def on_closing():
+        try:
+            # Stop linphone subprocess if running
+            if linphone_process.poll() is None:  # Check if the subprocess is still running
+                linphone_process.terminate()  # Terminate the Linphone process
+                linphone_process.wait()  # Wait for the process to finish
+
+            print("Application is closing. Clean up complete.")
+            
+        except Exception as e:
+            print(f"Error while closing: {e}")
+        
+        # Properly close the tkinter window
+        root.destroy()
+        
+        # Exit the program
+        sys.exit()
+
 
     # Event added for the physical button to make a call
     gpio.add_event_detect(pushButton, gpio.FALLING, callback=make_call_gpio, bouncetime=300)
@@ -359,7 +421,7 @@ try:
     separator = ttk.Separator(root, orient='horizontal')
     separator.pack(fill=tk.X, pady=2)
     separator = ttk.Separator(root, orient='horizontal')
-    separator.pack(fill=tk.X, pady=10)
+    separator.pack(fill=tk.X, pady=2)
 
     tk.Label(root, text="SETTINGS - under progress").pack(pady=10)
 
@@ -374,23 +436,26 @@ try:
     proxy_sipId.pack(pady=10)
 
     # Buttons for proxy management
-    add_proxy_button = tk.Button(root, text="Add Server to List", command=add_proxy)
+    add_proxy_button = tk.Button(root, text="Register Device", command=add_proxy)
     add_proxy_button.pack(pady=10)
 
-    # Input for proxy
-    proxy_input = tk.Entry(root, width=50)
-    proxy_input.insert(0, "do not touch me...")
-    proxy_input.pack(pady=10)
+    ## Input for proxy
+    # proxy_input = tk.Entry(root, width=50)
+    # proxy_input.insert(0, "do not touch me...")
+    # proxy_input.pack(pady=10)
 
-    remove_proxy_button = tk.Button(root, text="Remove Proxy", command=remove_proxy)
-    remove_proxy_button.pack(pady=5)
+    # remove_proxy_button = tk.Button(root, text="Remove Proxy", command=remove_proxy)
+    # remove_proxy_button.pack(pady=5)
 
-    list_proxies_button = tk.Button(root, text="List Proxies", command=list_proxies)
+    list_proxies_button = tk.Button(root, text="Read Current Config", command=list_proxies)
     list_proxies_button.pack(pady=5)
 
     # Start monitoring Linphone and auto-answer calls in a separate thread
     monitor_thread = threading.Thread(target=monitor_and_auto_answer, daemon=True)
     monitor_thread.start()
+
+    # Bind the close event (X button) to the on_closing function
+    root.protocol("WM_DELETE_WINDOW", on_closing)
 
     # Start the Tkinter main loop
     root.mainloop()
@@ -402,6 +467,6 @@ except Exception as e:
 
 
 # register sip:101@192.168.1.29 pi 101
-# register sip:101@192.168.1.29 sip:192.168.1.29
-# 
+# register sip:102@192.168.1.2 sip:192.168.1.2
+# register sip:101@192.168.1.2 sip:192.168.1.2
 # proxy add sip:192.168.1.29 sip:101@192.168.1.29 101 

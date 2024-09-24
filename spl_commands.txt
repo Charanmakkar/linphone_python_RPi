@@ -1,0 +1,7 @@
+chmod +x ~/.config/autostart/your_file.desktop
+
+
+chmod +x ~/Desktop/your_file.desktop
+
+
+

@@ -48,7 +48,7 @@ pygame.mixer.init()
 
 
 # Fixed Variables
-fixed_sip_ids = ["100", "102", "104"]  # List of server IPs
+fixed_sip_ids = ["2003", "2222", "2000"]  # List of server IPs
 
 # Global variables
 current_server_index = 0
@@ -73,8 +73,10 @@ try:
     linphone_process = subprocess.Popen(['/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/linphonec'], 
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                         text=True, bufsize=1)
+    time.sleep(0.1)
     linphone_process.stdin.write("autoanswer enable\n")
-    linphone_process.stdin.write("register sip:pi@192.168.1.2 sip:192.168.1.2\n")
+    time.sleep(0.1)
+    linphone_process.stdin.write("register sip:2001@192.168.1.123 sip:192.168.1.123\n")
 
     # Function to check registration status
     def check_registration():
@@ -144,11 +146,13 @@ try:
                         print("Call ended with error or termination.")
                         update_call_status(0)
                         call_active = False
+                        check_receivedCall = False
 
                     elif "ringing" in output:
                         print("Call is ringing.")
                         update_call_status(2)
                         CallAllServers = True
+                        check_receivedCall = False
                         
                         
                     elif "established" in output:

@@ -5,9 +5,9 @@ Python Code             : Emergency Calling Booth - Linphone / Linphonec with Py
 Project Done for        : Naman Bhatnagar
 
 
-File Version            : 1.0.1
-Date of Last Modified   : 25 Sept 2024
-Time of Last Modified   : 12:16 AM
+File Version            : 1.0.2
+Date of Last Modified   : 04 Oct 2024
+Time of Last Modified   : 03:30 PM
 
 Developer               : Charanpreet Singh
 Email                   : charanmakkar2@gmail.com
@@ -62,7 +62,7 @@ pygame.mixer.init()
 
 
 # Fixed Variables
-fixed_sip_ids = ["1000", "1001", "1002", "phone", "laptop"]  # List of server IPs
+fixed_sip_ids = ["1000", "1001", "1002"]  # List of server IPs
 
 # Global variables
 current_server_index = 0
@@ -82,10 +82,32 @@ AUDIO_FILE_1 = fixed_audio_path + "1.mp3"
 AUDIO_FILE_2 = fixed_audio_path + "2.mp3"
 
 
+# RGB LED 1 for LIVE STATUS OF SERVER
+led1_red = 0
+led1_blue = 0
+led1_green = 0
+
+# RGB LED 2 for LIVE STATUS of CALL 
+led2_red = 0
+led2_blue = 0
+led2_green = 0
+
+
 # GPIO Setup
-pushButton = 21
+# pushButton = 21                 # GPIO 21 = pin 40 of RPi
+pushButton = 4                  # GPIO 4 = pin 7 of RPi
 gpio.setmode(gpio.BCM)
 gpio.setup(pushButton, gpio.IN, pull_up_down=gpio.PUD_UP)
+
+# # RGB LED 1 for LIVE STATUS OF SERVER
+# gpio.setup(led1_red, gpio.OUT)
+# gpio.setup(led1_blue, gpio.OUT)
+# gpio.setup(led1_green, gpio.OUT)
+
+# # RGB LED 2 for LIVE STATUS OF CALL
+# gpio.setup(led2_red, gpio.OUT)
+# gpio.setup(led2_blue, gpio.OUT)
+# gpio.setup(led2_green, gpio.OUT)
 
 # Check if today's date is beyond 5th Oct 2024
 def validate_date():
@@ -100,6 +122,8 @@ def validate_date():
         
         # Terminate the program
         sys.exit()
+    else:
+        print("Validated")
 
 # Call this function at the start of the program
 validate_date()
@@ -109,10 +133,10 @@ try:
     linphone_process = subprocess.Popen(['/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/linphonec'], 
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                         text=True, bufsize=1)
-    time.sleep(0.1)
+    time.sleep(.1)
     linphone_process.stdin.write("autoanswer enable\n")
-    time.sleep(0.1)
-    linphone_process.stdin.write("register sip:pi@192.168.1.2 sip:192.168.1.2\n")
+    time.sleep(.1)
+    # linphone_process.stdin.write("register sip:pi@192.168.1.2 sip:192.168.1.2\n")
 
     # Function to check registration status
     def check_registration():
@@ -190,7 +214,6 @@ try:
                         CallAllServers = True
                         check_receivedCall = False
                         
-                        
                     elif "established" in output:
                         print("Call is established.")
                         update_call_status(1)
@@ -198,6 +221,7 @@ try:
                         CallAllServers = False
                         check_receivedCall = True
 
+                    print("Entered Check block")
                 # Check if the process has ended
                 if linphone_process.poll() is not None:
                     break
@@ -511,10 +535,11 @@ try:
     separator = ttk.Separator(root, orient='horizontal')
     separator.pack(fill=tk.X, pady=2)
 
-    tk.Label(root, text=f"Server Address fixed : {fixed_sip_ids[0]}, {fixed_sip_ids[1]}, {fixed_sip_ids[2]}, {fixed_sip_ids[3]}, {fixed_sip_ids[4]} ").pack(pady=10)
+    tk.Label(root, text=f"Server Address fixed : {fixed_sip_ids[0]}, {fixed_sip_ids[1]}, {fixed_sip_ids[2]}").pack(pady=10)
 
     # Start monitoring Linphone and auto-answer calls in a separate thread
     monitor_thread = threading.Thread(target=monitor_and_auto_answer, daemon=True)
+
     monitor_thread.start()
 
     # Bind the close event (X button) to the on_closing function

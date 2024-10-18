@@ -1,0 +1,10 @@
+{
+    "serverIP" : "192.168.1.1",
+    "serverPORT" : 50050,
+    "linphone_sipAddr" : "192.168.1.1",
+    "linphone_username" : "pi",
+    "DoorOpenMsg" : "Alert ! Door Open",
+    "DoorCloseMsg" : "Update ! Door Closed",
+    "proxy_server" : "sip:",
+    "proxy_id"     : "sip:"
+}

@@ -6,7 +6,7 @@ Project Done for        : Naman Bhatnagar
 
 
 File Version            : 1.0.2
-Date of Last Modified   : 04 Oct 2024
+Date of Last Modified   : 08 Oct 2024
 Time of Last Modified   : 03:30 PM
 
 Developer               : Charanpreet Singh
@@ -48,8 +48,10 @@ import subprocess, sys
 import time, traceback, threading
 from datetime import datetime
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, font
 import RPi.GPIO as gpio  # importing Lib for GPIOs in RPI
+import socket
+import json
 
 from PIL import Image, ImageTk  # PIL (Pillow) for handling image
 
@@ -73,13 +75,66 @@ check_receivedCall = True
 
 expire_year = 2024
 expire_month = 10
-expire_day = 10
+expire_day = 25
 
 
 # AUDIO FILE PATHs
 fixed_audio_path = "/home/pi/audios/"
 AUDIO_FILE_1 = fixed_audio_path + "1.mp3"
 AUDIO_FILE_2 = fixed_audio_path + "2.mp3"
+
+CONFIG_JSON_FILE = "config.json"
+
+config_json = {
+    "serverIP" : "192.168.1.1",
+    "serverPORT" : 50050,
+    "linphone_sipAddr" : "192.168.1.1",
+    "linphone_username" : "pi",
+    "DoorOpenMsg" : "Alert ! Door Open",
+    "DoorCloseMsg" : "Update ! Door Closed",
+    "proxy_server" : "sip:",
+    "proxy_id"     : "sip:"
+}
+
+default_config_json = {
+    "serverIP" : "192.168.1.1",
+    "serverPORT" : 50050,
+    "linphone_sipAddr" : "192.168.1.1",
+    "linphone_username" : "pi",
+    "DoorOpenMsg" : "Alert ! Door Open",
+    "DoorCloseMsg" : "Update ! Door Closed",
+    "proxy_server" : "sip:",
+    "proxy_id"     : "sip:"
+}
+
+# SERVER MESSAGING and Updates PUSHING SECTION
+serverPlayload = {
+    "val1" : 0,
+    "val2" : 0,
+    "val3" : 0,
+    "val4" : 0,
+    "val5" : 0,
+    "val6" : 0,
+    "val7" : 0,
+    "val8" : 0,
+    "val9" : 0,
+
+    "pushMessage" : "Dummy Message",
+    "doorOPEN" : "door=1",
+    "doorCLOSE" : "door=0",
+
+
+
+}
+
+variablesList = {
+    "doorStatus" : 0,           # 0 is CLOSED and 1 is OPEN
+    "callStatus" : 0,           # 0 is NO-CALL and 1 is ON-CALL
+    "lastDoorStatus" : 0,
+    "messageSentStatus" : 1,
+    
+}
+
 
 
 # RGB LED 1 for LIVE STATUS OF SERVER
@@ -95,9 +150,11 @@ led2_green = 0
 
 # GPIO Setup
 # pushButton = 21                 # GPIO 21 = pin 40 of RPi
-pushButton = 4                  # GPIO 4 = pin 7 of RPi
+pushButton_io = 4                  # GPIO 4 = pin 7 of RPi
+doorSensor_io = 3                  # GPIO 3 = pin 5 of RPi
 gpio.setmode(gpio.BCM)
-gpio.setup(pushButton, gpio.IN, pull_up_down=gpio.PUD_UP)
+gpio.setup(pushButton_io, gpio.IN, pull_up_down=gpio.PUD_UP)
+gpio.setup(doorSensor_io, gpio.IN, pull_up_down=gpio.PUD_UP)
 
 # # RGB LED 1 for LIVE STATUS OF SERVER
 # gpio.setup(led1_red, gpio.OUT)
@@ -125,10 +182,103 @@ def validate_date():
     else:
         print("Validated")
 
+def read_configJSONfile():
+    global config_json
+    try:
+        print("Read config.json file")
+        try:
+            with open(CONFIG_JSON_FILE, 'r') as file:
+                config_json = json.load(file)
+                print(config_json)
+                return config_json
+        except FileNotFoundError:
+            print(f"{CONFIG_JSON_FILE} not found!")
+            makeDefaultJSONfile()
+            return {}
+        
+    except Exception as e:
+        print(e)
+        makeDefaultJSONfile()
+
+def update_configJSONfile(ip, username):
+    global config_json
+    try:
+        config_json.update({"serverIP" : ip})
+        config_json.update({"linphone_sipAddr" : ip})
+        config_json.update({"linphone_username" : username})
+        config_json.update({"proxy_server" : "sip:"+ip})
+        config_json.update({"proxy_id"     : "sip:"+username+"@"+ip})
+        
+        print(config_json)
+
+        with open(CONFIG_JSON_FILE, 'w') as file:
+            json.dump(config_json, file, indent=4)  # indent=4 makes the JSON readable
+
+        config_json = read_configJSONfile()
+        
+    except Exception as e:
+        print(e)
+        makeDefaultJSONfile()
+
+def makeDefaultJSONfile():
+    with open(CONFIG_JSON_FILE, 'w') as file:
+        json.dump(default_config_json, file, indent=4)  # indent=4 makes the JSON readable
+
+
 # Call this function at the start of the program
 validate_date()
+read_configJSONfile()
 
 try:
+    def send_post_request(host="192.168.1.200", port=500050, path="/", payload="$0;0;0;0;0;0;0$"):
+        global config_json
+        try:
+            # Create a socket object
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            # Connect to the server
+            client_socket.connect((config_json["serverIP"], config_json["serverPORT"]))
+            
+            # Construct the HTTP POST request
+            post_request = f"POST {path} HTTP/1.1\r\n"
+            post_request += f"Host: {host}\r\n"
+            post_request += "Content-Type: text/plain\r\n"
+            post_request += f"Content-Length: {len(payload)}\r\n"
+            post_request += "Connection: close\r\n\r\n"
+            post_request += payload
+            post_request += "\r\n\r\n"
+            
+            # Send the request
+            client_socket.sendall(post_request.encode())
+            
+            # # Receive the response
+            response = b""
+            # while True:
+            #     data = client_socket.recv(1024)
+            #     if not data:
+            #         break
+            #     response += data
+
+            # Close the socket
+            client_socket.close()
+            
+            # Print the response
+            print(response.decode())
+        except Exception as e:
+            print(e)
+
+    # SEND UPDATE MSGS
+    # send_post_request(config_json["serverIP"], config_json["serverPORT"], "/msg", payload)
+
+    # SEND DEVICE DATA
+    myPayload = f"${serverPlayload['val1']};{serverPlayload['val2']};{serverPlayload['val3']};{serverPlayload['val4']};{serverPlayload['val5']};{serverPlayload['val6']};{serverPlayload['val7']}$"
+    print(myPayload)
+    send_post_request(config_json["serverIP"], config_json["serverPORT"], "/data", str(myPayload))
+
+    # RAISE ALERTS
+    send_post_request(config_json["serverIP"], config_json["serverPORT"], "/alert", str(serverPlayload["pushMessage"]))
+
+
     # Start Linphone in CLI mode
     linphone_process = subprocess.Popen(['/home/pi/linphone-sdk/build-raspberry/linphone-sdk/desktop/bin/linphonec'], 
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
@@ -137,6 +287,14 @@ try:
     linphone_process.stdin.write("autoanswer enable\n")
     time.sleep(.1)
     # linphone_process.stdin.write("register sip:pi@192.168.1.2 sip:192.168.1.2\n")
+
+    # Thread2 
+    def door_socket_logic():
+        try:
+            print("Entered door_socket_logic")
+
+        except Exception as e:
+            print(e)
 
     # Function to check registration status
     def check_registration():
@@ -347,18 +505,35 @@ try:
         call_active = active
         if call_active == 1:
             status_label.config(text="Call Active", bg="green")
+            variablesList["callStatus"] = 1
         elif call_active == 2:
             status_label.config(text="Ringing", bg="blue")
+            variablesList["callStatus"] = 0
         elif call_active == 0:
             status_label.config(text="Call Inactive", bg="red")
+            variablesList["callStatus"] = 0
 
     def add_proxy():
-        proxy_id = proxy_sipId.get()
-        proxy_server = proxy_sipAddr.get()
+        proxy_ipAddr = proxy_sipAddr.get().strip()
+        proxy_userID = proxy_sipId.get().strip()
+
+        proxy_server = "sip:"+proxy_ipAddr
+        proxy_id     = "sip:"+proxy_userID+"@"+proxy_ipAddr
+        
+        # if proxy_id and proxy_server:
+        #     linphone_process.stdin.write(f"register {proxy_id} {proxy_server}\n")
+        #     linphone_process.stdin.flush()
+        #     messagebox.showinfo("Proxy Status", f"Proxy {proxy_id} added.")
+        # else:
+        #     messagebox.showwarning("Input Error", "Please enter a proxy to add.")
+
+        # ONLY IP and USER ID
         if proxy_id and proxy_server:
             linphone_process.stdin.write(f"register {proxy_id} {proxy_server}\n")
             linphone_process.stdin.flush()
             messagebox.showinfo("Proxy Status", f"Proxy {proxy_id} added.")
+
+            update_configJSONfile(ip=proxy_ipAddr, username=proxy_userID)
         else:
             messagebox.showwarning("Input Error", "Please enter a proxy to add.")
 
@@ -447,15 +622,38 @@ try:
         # Properly close the tkinter window
         root.destroy()
         
-        # Exit the program
+        # Exit the prog
+        # ram
         sys.exit()
+
+    def doorOPEN(channel=None):  # Accept an optional argument for GPIO event
+        global call_active, current_server_index, CallAllServers
+
+    def doorCLOSE(channel=None):  # Accept an optional argument for GPIO event
+        global call_active, current_server_index, CallAllServers
+
+
+    def periodicTask_10sec(channel=None):
+        print("periodicTask_10sec")
+        print("Task executed at:", datetime.now())
+
+        threading.Timer(10, periodicTask_10sec).start()
+       
 
 
     # Event added for the physical button to make a call
-    gpio.add_event_detect(pushButton, gpio.FALLING, callback=make_call_gpio, bouncetime=300)
+    gpio.add_event_detect(pushButton_io, gpio.FALLING, callback=make_call_gpio, bouncetime=500)
+
+    # Event added for the physical button to make a call
+    gpio.add_event_detect(doorSensor_io, gpio.FALLING, callback=make_call_gpio, bouncetime=500)     # DOOR CLOSED
+
+    # Event added for the physical button to make a call
+    gpio.add_event_detect(doorSensor_io, gpio.RISING, callback=make_call_gpio, bouncetime=500)      # DOOR OPEN
+
 
     # Create the main Tkinter window
     root = tk.Tk()
+    bold_font = font.Font(weight="bold")
     root.title(f"CALL BOOTH (Expire {expire_day} Oct 2024)")
 
     # Load the background image
@@ -464,7 +662,7 @@ try:
     bg_photo_trail = ImageTk.PhotoImage(bg_image_trail)     
     # Create a label to display the image as background
     bg_label_trail = tk.Label(root, image=bg_photo_trail)
-    bg_label_trail.place(x=160, y=-145, relwidth=1, relheight=1)  # Stretch to fit window
+    bg_label_trail.place(x=160, y=-170, relwidth=1, relheight=1)  # Stretch to fit window
 
     # Load the background image
     bg_image_path_logo = "/home/pi/logo.png"  # Update the path to your image file
@@ -472,24 +670,24 @@ try:
     bg_photo_logo = ImageTk.PhotoImage(bg_image_logo)     
     # Create a label to display the image as background
     bg_label_logo = tk.Label(root, image=bg_photo_logo)
-    bg_label_logo.place(x=-170, y=-145, relwidth=1, relheight=1)  # Stretch to fit window
+    bg_label_logo.place(x=-170, y=-170, relwidth=1, relheight=1)  # Stretch to fit window
 
     # Create a label and input field for SIP ID
-    tk.Label(root, text="Enter SIP ID: (only username/id)").pack(pady=10)
+    tk.Label(root, text="Enter SIP ID: (only username/id)").pack(anchor='w', pady=(20,2))
     sip_input = tk.Entry(root, width=50)
-    sip_input.pack(pady=10)
+    sip_input.pack(pady=(2, 10))
 
     # Create a button to initiate the call
     call_button = tk.Button(root, text="Make Call", command=make_call_single)
-    call_button.pack(pady=10)
+    call_button.pack(pady=5)
 
     # Create a button to terminate the call
     terminate_button = tk.Button(root, text="Terminate Call", command=terminate_call)
-    terminate_button.pack(pady=10)
+    terminate_button.pack(pady=5)
 
     # Call status indicator
     status_label = tk.Label(root, text="Call Inactive", bg="red", width=20)
-    status_label.pack(pady=15)
+    status_label.pack(pady=(15, 30))
 
     # Add a separator (splitting line) between the two sections
     separator = ttk.Separator(root, orient='horizontal')
@@ -499,17 +697,25 @@ try:
     separator = ttk.Separator(root, orient='horizontal')
     separator.pack(fill=tk.X, pady=2)
 
-    tk.Label(root, text="CONFIG Section").pack(pady=10)
+    tk.Label(root, text="CONFIG Section", font=bold_font).pack(pady=10)
 
     # tk.Label(root, text="sip:192.168.1.2").pack(pady=10)
-    proxy_sipAddr = tk.Entry(root, width=50)
-    proxy_sipAddr.insert(0, "sip:192.168.1.2")
-    proxy_sipAddr.pack(pady=10)
+    proxy_sipId_label = tk.Label(root, text="Server IP Addr:").pack(anchor='w', pady=(5,5), padx=42)
+    proxy_sipAddr = tk.Entry(root, width=40)
+    proxy_sipAddr.insert(0, config_json["linphone_sipAddr"])
+    proxy_sipAddr.pack(pady=(0, 10))
 
     # tk.Label(root, text="sip:username@192.168.1.2").pack(pady=10)
-    proxy_sipId = tk.Entry(root, width=50)
-    proxy_sipId.insert(0, "sip:username@192.168.1.2")
-    proxy_sipId.pack(pady=5)
+    proxy_sipId_label = tk.Label(root, text="My username:").pack(anchor='w', pady=(5,5), padx=42)
+    proxy_sipId = tk.Entry(root, width=40)
+    proxy_sipId.insert(0, config_json["linphone_username"])
+    proxy_sipId.pack(pady=(0, 10))
+
+    server_portNumber_label = tk.Label(root, text="Server PORT (socket):").pack(anchor='w', pady=(5,5), padx=42)
+    server_portNumber = tk.Entry(root, width=40)
+    server_portNumber.insert(0, config_json["serverPORT"])
+    server_portNumber.config(state='disabled')  # Lock the entry box
+    server_portNumber.pack(pady=(0, 20))
 
     # Buttons for proxy management
     add_proxy_button = tk.Button(root, text="Register Device", command=add_proxy)
@@ -523,8 +729,8 @@ try:
     # remove_proxy_button = tk.Button(root, text="Remove Proxy", command=remove_proxy)
     # remove_proxy_button.pack(pady=5)
 
-    list_proxies_button = tk.Button(root, text="Read Current Config", command=list_proxies)
-    list_proxies_button.pack(pady=5)
+    # list_proxies_button = tk.Button(root, text="Read Current Config", command=list_proxies)
+    # list_proxies_button.pack(pady=5)
 
     # GPIO Test button
     gpio_test_button = tk.Button(root, text="GPIO TEST Button", command=gpio_test_button_click)
@@ -535,12 +741,17 @@ try:
     separator = ttk.Separator(root, orient='horizontal')
     separator.pack(fill=tk.X, pady=2)
 
-    tk.Label(root, text=f"Server Address fixed : {fixed_sip_ids[0]}, {fixed_sip_ids[1]}, {fixed_sip_ids[2]}").pack(pady=10)
+    L1 = tk.Label(root, text="Server side client Addresses :").pack(pady=10)
+    L2 = tk.Label(root, text=f"{fixed_sip_ids[0]}, {fixed_sip_ids[1]}, {fixed_sip_ids[2]}", font=bold_font).pack(pady=(0, 20))
 
     # Start monitoring Linphone and auto-answer calls in a separate thread
     monitor_thread = threading.Thread(target=monitor_and_auto_answer, daemon=True)
-
+    door_thread = threading.Thread(target=door_socket_logic, daemon=True)
     monitor_thread.start()
+    # door_thread.start()
+    
+    # Execute a period task after every 10 seconds
+    periodicTask_10sec()
 
     # Bind the close event (X button) to the on_closing function
     root.protocol("WM_DELETE_WINDOW", on_closing)
